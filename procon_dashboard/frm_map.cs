@@ -14,7 +14,7 @@ using System.Windows.Forms;
 namespace procon_dashboard
 {
     public partial class frm_map : Form
-    {
+    { 
         private string token { get; set; }
         private string host { get; set; }
         private Matche inf { get; set; }
