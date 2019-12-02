@@ -14,7 +14,7 @@ using System.Windows.Forms;
 namespace procon_dashboard
 {
     public partial class frm_map : Form
-    { 
+    {
         private string token { get; set; }
         private string host { get; set; }
         private Matche inf { get; set; }
@@ -22,10 +22,8 @@ namespace procon_dashboard
         private DateTime timeServer { get; set; }
         private List<List<Button>> arrBtn;
         private Dictionary<Button, Agent> dictBtn;
-        private bool startGame;
-        private bool isSendRequset;
-        private int currentTime;
-        private long oldTime;
+        private Dictionary<Button, Button> dictBtnColorTemp;
+        
         private Button currentBtn;
         private ActionSubmit res;
         public frm_map()
@@ -58,7 +56,6 @@ namespace procon_dashboard
             lb_turns.Text = inf.turns.ToString();
             lb_intervalMillis.Text = inf.intervalMillis.ToString();
             lblCountDown.Text = "" + inf.turnMillis;
-            this.startGame = true;
 
             // timer.Start();
             var task = MatchesID(host, token, inf.id);
@@ -79,6 +76,7 @@ namespace procon_dashboard
             int dem = 0;
             this.arrBtn = new List<List<Button>>();
             this.dictBtn = new Dictionary<Button, Agent>();
+            this.dictBtnColorTemp = new Dictionary<Button, Button>();
             for (int i = 0; i < n; i++)
             {
                 //khai bao list cot                
@@ -137,6 +135,10 @@ namespace procon_dashboard
                             item.dx = dx;
                             item.dy = dy;
                             item.type = getAction(btn.BackColor);
+                            //this.arrBtn[dy][dx].BackColor = Color.Violet;
+                            btn.BackColor = Color.Violet;
+                            this.dictBtnColorTemp[currentBtn].BackColor = Color.White;
+                            this.dictBtnColorTemp[currentBtn] = btn;
                         }
                     }
                     var json = JsonConvert.SerializeObject(this.res);
@@ -152,11 +154,10 @@ namespace procon_dashboard
                 btn.BackColor = Color.Yellow;
             }
 
-
         }
 
         #region API
-        public static string prevMatchesJson = "";
+        public static long prevMatchesJson = 0;
         public async Task MatchesID(string url, string token, int id)
         {
             Console.WriteLine("Lay thong tin tran dau: " + id);
@@ -171,41 +172,40 @@ namespace procon_dashboard
                 if (result.IsSuccessStatusCode)
                 {
                     string body = await result.Content.ReadAsStringAsync();
-                    if (body == prevMatchesJson)
+                    //if (body == prevMatchesJson)
+                    //{
+                    //    return;
+                    //} else
+                    //{
+                    //    prevMatchesJson = body;
+                    //    lblCountDown.Text = "" + inf.turnMillis;
+                    //}
+                    //Console.WriteLine("body: " + body);
+                   
+                    JObject job = JObject.Parse(body);
+                    data = job.ToObject<MatchIDData>();
+
+                    if (data.startedAtUnixTime == prevMatchesJson)
                     {
                         return;
                     } else
                     {
-                        prevMatchesJson = body;
+                        prevMatchesJson = data.startedAtUnixTime;
                         lblCountDown.Text = "" + inf.turnMillis;
                     }
-                    //Console.WriteLine("body: " + body);
-
-                    JObject job = JObject.Parse(body);
-                    data = job.ToObject<MatchIDData>();
-                    //Console.WriteLine("heigth: " + data.height);
-                    //Console.WriteLine("width: " + data.width;
+                    
+                    
                     int myTeamId = int.Parse(lb_idTeam.Text);
                     lb_currentTurn.Text = data.turn + "";
                     Console.WriteLine("Time server: " + data.startedAtUnixTime);
 
-                    //bat dau dem nguoc de gui request
-                    if (data.startedAtUnixTime != oldTime)
-                    {
-                        oldTime = data.startedAtUnixTime;
-                        this.currentTime = (inf.turnMillis) / 1000;
-                        //timerRequest.Start();
-                    }
-                    //isSendRequset = false;
-                    //timeServer = UnixTimeToDateTime(data.startedAtUnixTime);
-                    //Console.WriteLine("gio server truoc khi cong: "+timeServer);
-                    //timeServer = timeServer.AddMilliseconds(inf.turnMillis + inf.intervalMillis);
+                    
                     //ket qua moi
                     res = new ActionSubmit();
 
                     foreach (var item in data.teams)
                     {
-                        Console.WriteLine("team id: " + item.teamID);
+                        //Console.WriteLine("team id: " + item.teamID);
                         if (item.teamID == myTeamId)
                         {
                             lb_teamIDTa.Text = item.teamID.ToString();
@@ -221,8 +221,6 @@ namespace procon_dashboard
                     }
                     this.panel_map.Enabled = false;
 
-                    //ve map 1 lan, doi request
-                    if (!startGame) return;
                     Console.WriteLine("Ve Map");
                     DrawMap(data.height, data.width, data.tiled, data.points, myTeamId);
                     //ve agent hien tai
@@ -245,16 +243,18 @@ namespace procon_dashboard
                             }
 
                             //neu la quan minh thi them vao list ket qua
+                            // lay ket qua tu dong                            
                             if (item.teamID == myTeamId)
                             {
-                                this.res.actions.Add(new ActionSubmitFormat
-                                {
-                                    agentID = agent.agentID,
-                                    dx = 0,
-                                    dy = 0,
-                                    turn = data.turn,
-                                    type = "stay"
-                                });
+                                //this.res.actions.Add(new ActionSubmitFormat
+                                //{
+                                //    agentID = agent.agentID,
+                                //    dx = 0,
+                                //    dy = 0,
+                                //    turn = data.turn,
+                                //    type = "stay"
+                                //});
+                                this.res.actions.Add(GetMax8(data.width, data.height, data.tiled, data.points,  x,  y, agent.agentID, btn, item.teamID));
                             }
                         }
 
@@ -272,6 +272,64 @@ namespace procon_dashboard
             }
         }
 
+        private int[] ddx = { -1, +0, +1, +1, 1, +0, -1, -1 };
+        private int[] ddy = { -1, -1, -1, +0, 1, +1, +1, 0 };
+        private bool Valid(int x, int n)
+        {
+            return (0 <= x) && (x <= n);
+        }
+        private ActionSubmitFormat GetMax8(int width, int height, List<List<int>> tiled, List<List<int>> points, int x, int y, int idAgent, Button btn,int teamID)
+        {
+            Console.WriteLine("x: {0} y: {1}",x,y);
+            ActionSubmitFormat res = new ActionSubmitFormat {
+                agentID = idAgent,
+                dx = 0,
+                dy = 0,
+                turn = data.turn,
+                type = "stay"
+            };
+
+
+            int _vt = 0, dx, dy, dtx, dty, _min = Int32.MinValue;
+            for (int i = 0; i < 8; i++)
+            {
+                dx = ddx[i] + x;
+                dy = ddy[i] + y;
+                dtx = ddx[_vt] + x;
+                dty = ddy[_vt] + y;
+                Console.WriteLine("\tdx: {0} dy: {1}", dx, dy);
+
+                //kiem tra nam trong map
+                if (Valid(dx, height-1) && Valid(dy, width-1) )
+                {
+                    if (tiled[dy][dx] != teamID) break;
+                    if (points[dy][dx] > _min)
+                    {
+                        res.dx = ddx[i];
+                        res.dy = ddy[i];
+                        res.type = getAction(btn.BackColor);
+                        _vt = i;
+                        _min = points[dy][dx];
+                    }
+                }
+                
+            }
+            Console.WriteLine("vt: "+_vt);
+            dtx = ddx[_vt] + x;
+            dty = ddy[_vt] + y;
+
+            Console.WriteLine("\tdxm: {0} dym: {1}", dtx, dty);
+            if (_min != Int32.MinValue)
+            {
+                Button bt = this.arrBtn[dty][dtx];
+                bt.BackColor = Color.Violet;
+                this.dictBtnColorTemp.Add(btn,bt);
+            }
+            return res;
+        }
+
+       
+
         public async Task Submit(string url, string token, int idMatch, string value)
         {
             Console.WriteLine("--- Submit ---");
@@ -286,57 +344,12 @@ namespace procon_dashboard
             }
         }
         #endregion
-        private void timer_Tick(object sender, EventArgs e)
-        {
-            Console.WriteLine("---");
-            if (data.startedAtUnixTime == 0)
-            {
-                startGame = false;
-                if (!isSendRequset)
-                {
-                    isSendRequset = true;
-                    var task = MatchesID(host, token, inf.id);
-                }
-
-
-            }
-            else
-            if (data.startedAtUnixTime != 0)
-            {
-                if (!startGame)
-                {
-                    startGame = true;
-                    oldTime = data.startedAtUnixTime;
-                    timerRequest.Start();
-                    MessageBox.Show("Bắt Đầu Trận Đấu !!!");
-                    timer.Stop();
-
-                }
-            }
-        }
-
-        private void timerRequest_Tick(object sender, EventArgs e)
-        {
-            Console.WriteLine("dem nguoc: " + currentTime);
-            currentTime--;
-            if (currentTime <= 0)
-            {
-                Console.WriteLine("New Requset to server");
-                if (!isSendRequset)
-                {
-                    var task = MatchesID(host, token, inf.id);
-                }
-               
-            }
-        }
 
         private void btn_submit_Click(object sender, EventArgs e)
         {
             var task = Submit(host, token, inf.id, txt_jsonSubmit.Text);
         }
 
-
-        
         private void button1_Click(object sender, EventArgs e)
         {
             var task = MatchesID(host, token, inf.id);

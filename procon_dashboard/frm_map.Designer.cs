@@ -61,8 +61,6 @@
             this.label6 = new System.Windows.Forms.Label();
             this.lb_idTeam = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
-            this.timer = new System.Windows.Forms.Timer(this.components);
-            this.timerRequest = new System.Windows.Forms.Timer(this.components);
             this.button1 = new System.Windows.Forms.Button();
             this.button2 = new System.Windows.Forms.Button();
             this.autoRefreshTimer = new System.Windows.Forms.Timer(this.components);
@@ -392,16 +390,6 @@
             this.label4.TabIndex = 7;
             this.label4.Text = "ID Team";
             // 
-            // timer
-            // 
-            this.timer.Interval = 2000;
-            this.timer.Tick += new System.EventHandler(this.timer_Tick);
-            // 
-            // timerRequest
-            // 
-            this.timerRequest.Interval = 1000;
-            this.timerRequest.Tick += new System.EventHandler(this.timerRequest_Tick);
-            // 
             // button1
             // 
             this.button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 20F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -505,8 +493,6 @@
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label lb_idTeam;
         private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.Timer timer;
-        private System.Windows.Forms.Timer timerRequest;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Timer autoRefreshTimer;
